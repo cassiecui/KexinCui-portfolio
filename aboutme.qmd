@@ -2,6 +2,40 @@
 title: "About me"
 ---
 
-Add some text and a figure describing myself.
+![Photo of Cassie](kc50138@uga.edu-8fdd2cd6.jpg){width=20% fig-align="center"}
 
-For details, see the instructions. 
+
+Hi everyone! My name is Kexin Cui (you can call me Cassie). I’m a Ph.D. student in Epidemiology and Biostatistics with a Data Analysis and Modelling (DAM) concentration, working in the Bahl Lab, and I have a background in Data Analytics. I’m taking EPID 8060E because it is a core requirement for my concentration.
+
+### Research Interests
+My research interests focus on integrating machine learning models with statistical analysis to advance phylogenetic studies, with an emphasis on improving inference, interpretation, and visualization of evolutionary and transmission processes. I am particularly interested in infectious disease systems, where genomic data, ecological drivers, and surveillance data can be combined to better understand how pathogens spread across space and time.
+
+### Statistics, Modeling, and Programming Experience
+
+I have experience with a range of statistical and modeling approaches, including:
+
+* Generalized linear models, including logistic, Poisson, quasi-Poisson, and negative binomial models
+
+* Survival analysis
+
+* Longitudinal data analysis
+
+* Network analysis and spatial modeling
+
+* Phylogenetic and phylodynamic modeling, including experience using BEAST to study evolutionary and transmission patterns
+
+On the programming side, I primarily use R for data wrangling, statistical modeling, visualization, and reproducible reporting (e.g., tidyverse, ggplot2, Shiny, gtsummary). I also have experience using SAS for applied biostatistics coursework and Python for data processing and visualization. I am comfortable working with large, multi-source datasets and building reproducible analysis pipelines.
+
+### What I Hope to Learn in This Course
+In this course, I hope to strengthen my ability to conduct end-to-end data analysis workflows, from formulating feasible research questions to selecting and justifying appropriate statistical and machine learning approaches. This is particularly relevant to my research in phylogenetic and phylodynamic studies, where modeling choices strongly influence inference and interpretation.
+
+I am also interested in improving my skills in reproducible data processing and analysis, especially using R and GitHub, and in communicating complex results and uncertainty in a clear, interpretable way for diverse audiences.
+
+### Something Cool Related to Data Analysis
+One data-driven tool that I find particularly interesting is Research Rabbit, a literature discovery platform built on citation network analysis and recommendation algorithms.
+
+🔗 https://www.researchrabbit.ai/
+
+One data resource I find particularly important for data analysis is the NCBI platform, which serves as a central hub for large-scale biological and genomic data.
+
+🔗 https://www.ncbi.nlm.nih.gov/
