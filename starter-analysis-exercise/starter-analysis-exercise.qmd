@@ -197,3 +197,14 @@ str(divorce_margarine)
 summary(divorce_margarine)
 #gives an overview of the data
 
+is.na(divorce_margarine)
+#checks for missing data
+#there is no missing data
+
+plot(divorce_margarine$year, divorce_margarine$margarine_consumption_per_capita)
+#plots the consumption of margarine in the us per capita over the years
+
+plot(divorce_margarine$year, divorce_margarine$divorce_rate_main)
+#plots the divorce rate in main over the years
+```
+After looking at these two plots separately, I see that they look very similar. Now I want to see if I can get them both into one plot.
