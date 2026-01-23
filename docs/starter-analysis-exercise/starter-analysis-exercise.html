@@ -588,9 +588,121 @@ F-statistic: 0.2549 on 1 and 49 DF,  p-value: 0.6159</code></pre>
 <h3 class="anchored" data-anchor-id="model-results">Model results</h3>
 <p>Using data from the year 2000, the linear regression of life expectancy on infant mortality shows a strong negative association. The estimated slope is −0.19 (p &lt; 0.001), indicating that higher infant mortality is associated with lower life expectancy. This model explains a substantial portion of the variation in life expectancy across African countries (R^2 = 0.47).</p>
 <p>In contrast, the regression of life expectancy on population size shows no evidence of an association. The population coefficient is close to zero and not statistically significant (p = 0.616), and the model explains almost none of the variation in life expectancy (R^2 = 0.005). These results are consistent with the patterns observed in the scatter plots.</p>
-
-
 </section>
+</section>
+<section id="this-section-contributed-by-esther-palmer" class="level2">
+<h2 class="anchored" data-anchor-id="this-section-contributed-by-esther-palmer">This section contributed by Esther Palmer</h2>
+<p>I have chosen the dataset divorce_margarine, which looks at divorce rates and margerine consumption on a per capita basis. I am very intrigued to see if there’s any kind of relationship between these two things, as I would hypothesise that there should not be.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"dslabs"</span>)</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a><span class="co"># loads libraries for this project</span></span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a><span class="co"># dslabs has data</span></span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(divorce_margarine)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>'data.frame':   10 obs. of  3 variables:
+ $ divorce_rate_maine              : num  5 4.7 4.6 4.4 4.3 4.1 4.2 4.2 4.2 4.1
+ $ margarine_consumption_per_capita: num  8.2 7 6.5 5.3 5.2 4 4.6 4.5 4.2 3.7
+ $ year                            : int  2000 2001 2002 2003 2004 2005 2006 2007 2008 2009</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(divorce_margarine)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> divorce_rate_maine margarine_consumption_per_capita      year     
+ Min.   :4.10       Min.   :3.700                    Min.   :2000  
+ 1st Qu.:4.20       1st Qu.:4.275                    1st Qu.:2002  
+ Median :4.25       Median :4.900                    Median :2004  
+ Mean   :4.38       Mean   :5.320                    Mean   :2004  
+ 3rd Qu.:4.55       3rd Qu.:6.200                    3rd Qu.:2007  
+ Max.   :5.00       Max.   :8.200                    Max.   :2009  </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="co">#gives an overview of the data</span></span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a><span class="fu">is.na</span>(divorce_margarine)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>      divorce_rate_maine margarine_consumption_per_capita  year
+ [1,]              FALSE                            FALSE FALSE
+ [2,]              FALSE                            FALSE FALSE
+ [3,]              FALSE                            FALSE FALSE
+ [4,]              FALSE                            FALSE FALSE
+ [5,]              FALSE                            FALSE FALSE
+ [6,]              FALSE                            FALSE FALSE
+ [7,]              FALSE                            FALSE FALSE
+ [8,]              FALSE                            FALSE FALSE
+ [9,]              FALSE                            FALSE FALSE
+[10,]              FALSE                            FALSE FALSE</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="co">#checks for missing data</span></span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a><span class="co">#there is no missing data</span></span>
+<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(divorce_margarine<span class="sc">$</span>year, divorce_margarine<span class="sc">$</span>margarine_consumption_per_capita)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="starter-analysis-exercise_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="co">#plots the consumption of margarine in the us per capita over the years</span></span>
+<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(divorce_margarine<span class="sc">$</span>year, divorce_margarine<span class="sc">$</span>divorce_rate_maine)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="starter-analysis-exercise_files/figure-html/unnamed-chunk-9-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="co">#plots the divorce rate in main over the years</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>After looking at these two plots separately, I see that they look very similar. Now I want to see if I can get them both into one plot.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb48"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="co">#these variables are long so I'm going to make them shorter</span></span>
+<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> divorce_margarine<span class="sc">$</span>year</span>
+<span id="cb48-3"><a href="#cb48-3" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> divorce_margarine<span class="sc">$</span>divorce_rate_maine</span>
+<span id="cb48-4"><a href="#cb48-4" aria-hidden="true" tabindex="-1"></a>m <span class="ot">&lt;-</span> divorce_margarine<span class="sc">$</span>margarine_consumption_per_capita</span>
+<span id="cb48-5"><a href="#cb48-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb48-6"><a href="#cb48-6" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(y, m, <span class="at">col =</span> <span class="st">"green"</span>, <span class="at">pch=</span><span class="dv">19</span>)</span>
+<span id="cb48-7"><a href="#cb48-7" aria-hidden="true" tabindex="-1"></a><span class="fu">points</span>(y, d, <span class="at">col =</span> <span class="st">"blue"</span>, <span class="at">pch=</span><span class="dv">19</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="starter-analysis-exercise_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="co">#plots both series on the same graph</span></span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a><span class="co">#margarine consumption is in green</span></span>
+<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a><span class="co">#divorce rate is in blue</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>When looking at the two separate plots I was worried that I would have to conclude that we should all eat less margarine for the sake of our marriages. While I am well aware correlation does not equal causation, after looking at the two separate plots graphed against each other I am no longer convinced that there is much of a correlation. The divorce rate per capita has actually remained fairly steady while the margarine consumption per capita has fallen. I also think it should be noted that as far as I can tell, it’s the divorce rate in maine, and margarine consumption for the US as a whole, which is not a fair comparison.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb50"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">lm</span>(d <span class="sc">~</span> m)</span>
+<span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+lm(formula = d ~ m)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-0.05583 -0.01816 -0.01452  0.03601  0.04625 
+
+Coefficients:
+            Estimate Std. Error t value Pr(&gt;|t|)    
+(Intercept) 3.308626   0.048032   68.88 2.20e-12 ***
+m           0.201386   0.008735   23.05 1.33e-08 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 0.03841 on 8 degrees of freedom
+Multiple R-squared:  0.9852,    Adjusted R-squared:  0.9833 
+F-statistic: 531.5 on 1 and 8 DF,  p-value: 1.33e-08</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb52"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a><span class="co">#this is a linear model of the divorce rate and margarine consumption</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>If I am interpreting this correctly, it looks like margarine consumption has a small (.2) positive correlation with divorce rate and it is statistically signifigant.</p>
+
+
 </section>
 
 </main> <!-- /main -->
