@@ -185,3 +185,15 @@ evidence of an association. The population coefficient is close to zero and
 not statistically significant (p = 0.616), and the model explains almost none
 of the variation in life expectancy (R^2 = 0.005). These results are consistent
 with the patterns observed in the scatter plots.
+
+## This section contributed by Esther Palmer
+
+I have chosen the dataset divorce_margarine, which looks at divorce rates and margerine consumption on a per capita basis. I am very intrigued to see if there's any kind of relationship between these two things, as I would hypothesise that there should not be.
+
+```{r}
+library("dslabs")
+# loads library
+str(divorce_margarine)
+summary(divorce_margarine)
+#gives an overview of the data
+
