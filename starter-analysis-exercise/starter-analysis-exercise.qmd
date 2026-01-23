@@ -226,3 +226,10 @@ points(y, d, col = "blue", pch=19)
 
 When looking at the two separate plots I was worried that I would have to conclude that we should all eat less margarine for the sake of our marriages. While I am well aware correlation does not equal causation, after looking at the two separate plots graphed against each other I am no longer convinced that there is much of a correlation. The divorce rate per capita has actually remained fairly steady while the margarine consumption per capita has fallen.
 I also think it should be noted that as far as I can tell, it's the divorce rate in maine, and margarine consumption for the US as a whole, which is not a fair comparison.
+
+```{r}
+fit <- lm(d ~ m)
+summary(fit)
+#this is a linear model of the divorce rate and margarine consumption
+```
+If I am interpreting this correctly, it looks like margarine consumption has a small (.2) positive correlation with divorce rate and it is statistically signifigant.
