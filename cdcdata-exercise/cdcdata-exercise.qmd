@@ -203,3 +203,34 @@ synth_data$disparity_value <- abs(synth_data$cigarette_use_prevalence_percent_fo
 ```
 
 I have created all the variables! Now time to graph and see how they compare against the original data
+
+```{r}
+ggplot(synth_data, aes(cigarette_use_prevalence_percent_focus_group)) +
+  geom_histogram(bins = 30) +
+  labs(title = "Focus-group smoking prevalence", x = "Prevalence (%)", y = "Count")
+
+ggplot(synth_data, aes(disparity_value)) +
+  geom_histogram(bins = 30) +
+  labs(title = "Disparity values", x = "Disparity", y = "Count")
+
+ggplot(synth_data, aes(x = focus_group, y = cigarette_use_prevalence_percent_focus_group)) +
+  geom_boxplot() +
+  coord_flip() +
+  labs(title = "Focus-group prevalence by focus group", x = "Focus group", y = "Prevalence (%)")
+
+synth_data %>%
+  group_by(year) %>%
+  summarise(mean_prev_focus = mean(cigarette_use_prevalence_percent_focus_group), mean_disparity = mean(disparity_value), .groups = "drop") %>%
+  ggplot(aes(year, mean_prev_focus)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Mean focus-group prevalence over time (pooled)", x = "Year", y = "Mean prevalence (%)")
+```
+
+My bar plot of the focus group prevalence had some of the original bimodal distribution!
+However the disparity had a much larger tail
+This is probably becaus year is related and I did not account for that at all when generating this data.
+The box plots also are not in any way related to the previous box plots, probably because I destroyed any relationship between age and prevalence
+The line plot is also completely out of whack.
+
+Next time I create synthetic data I will be more careful about maintaining the relationships between variables.
