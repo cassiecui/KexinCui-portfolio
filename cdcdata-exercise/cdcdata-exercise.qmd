@@ -126,3 +126,111 @@ cdc %>%
 
 ```
 
+## This section contributed by Esther Palmer
+
+I had to move the location of the file, as the code as written couldn't find it where it was. I didn't necessarily wish to change the code so I figured moving the file itself to where the code can find it on my end would be fine.
+
+This cell loads the libraries not in the previous section
+```{r}
+library(dplyr)
+library(skimr)
+
+```
+
+This cell creates my synthetic data
+```{r}
+n_dat <- c(500)
+
+synth_data <- data.frame(
+  year = numeric(n_dat),
+  state = character(n_dat),
+  tobacco_use = character(n_dat),
+  demographic = character(n_dat),
+  focus_group = character(n_dat),
+  cigarette_use_prevalence_percent_focus_group = character(n_dat),
+  reference_group = character(n_dat),
+  cigarette_use_prevalence_percent_reference_group = character(n_dat),
+ disparity_value = character(n_dat)
+)
+#this should ideally create an empty dataframe with 100 rows that I can then fill with synthetic data
+#I chose 500 because it is easy to do math on
+
+#now I will start filling in the variables
+synth_data$year <- sample(2011:2023, n_dat, replace = TRUE)
+#this should generate 100 integers between 2011 and 2023 and fill in the year variable
+synth_data$year <- sort(synth_data$year, decreasing = FALSE)
+#This puts the years in order like the original dataset
+
+state_prob <- c(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1)
+
+synth_data$state <- sample(c("Alaska", "Arizona", "California", "Colorado", "Georgia", "Hawaii", "Idaho", "Indiana", "Iowa", "Kansas"),
+ n_dat, 
+ replace =TRUE,
+ prob =  state_prob
+)
+#this should generate states for this data set, looking at the previous tables there were equal numbers of them so I attempted to set the probability at equal (0.1) using a vector, however this seems to not be perfect. I think not setting the probablility to anything would still have the same effect as what I did
+
+#I have realized that I have no reference for what the categories are for this one, so I will make a table (I edited the code from above for this variable)
+cdc %>% count(tobacco_use, sort = TRUE) %>% mutate(pct = n/sum(n)*100)
+#It seems like all columns are filled with "Cigarette use among Adults"
+synth_data$tobacco_use <- sample(c("Cigarette Use among Adults"), n_dat, replace = TRUE)
+#This vector is now filled with the correct singular response
+
+synth_data$demographic <- sample(c("Age"), n_dat, replace = TRUE)
+#this is another vector filled with a singular response
+
+focus_prob <- c(25.2, 25.2, 25.2, 24.4)
+#This vector contains the probability of each category of the focus group, taken from the table generated above
+synth_data$focus_group <- sample(c("Age 25-44", "Age 45-64", "Age 65 or older", "Age 18-24"), n_dat, replace = TRUE, prob = focus_prob)
+#This should regenerate the focus group column with these categories at these probablilities
+#I am having a hard time getting these probabilities to exactly match up, it would probably be easier with larger numbers
+#tried that, maybe not
+#I also need to fill in the reference group data, however there isn't a table above, so I will borrow/edit the code for it
+cdc %>% count(ref_group, sort = TRUE) %>% mutate(pct = n/sum(n)*100)
+#this shows a similar prob for the reference group as compared to focus
+synth_data$reference_group <- sample(c("Age 25-44", "Age 45-64", "Age 65 or older", "Age 18-24"), n_dat, replace = TRUE, prob = focus_prob)
+
+#these next ones are a bunch of continuous data points. Theres also a relationship between disparity and both prevalence of the focus group and the prevalence in the reference group. As in disparity = focus - ref, and so I can't just randomly generate disparity
+#based on the histogram above, I think prevalence was in a bimodal distribution rather than a normal one. So I will use the technique of randomly sampling from the actual numbers in the hopes that this synthetic dataset will match this distribution.
+synth_data$cigarette_use_prevalence_percent_focus_group <- sample(cdc$prev_focus, size = n_dat, replace = TRUE)
+
+#I will use the same technique for the reference group
+synth_data$cigarette_use_prevalence_percent_reference_group <- sample(cdc$prev_ref, size = n_dat, replace = TRUE)
+
+#now I have to figure out how to do math, I want disparity = [focus - ref] (absolute value bc I noticed no negative values)
+synth_data$disparity_value <- abs(synth_data$cigarette_use_prevalence_percent_focus_group - synth_data$cigarette_use_prevalence_percent_reference_group)
+
+```
+
+I have created all the variables! Now time to graph and see how they compare against the original data
+
+```{r}
+ggplot(synth_data, aes(cigarette_use_prevalence_percent_focus_group)) +
+  geom_histogram(bins = 30) +
+  labs(title = "Focus-group smoking prevalence", x = "Prevalence (%)", y = "Count")
+
+ggplot(synth_data, aes(disparity_value)) +
+  geom_histogram(bins = 30) +
+  labs(title = "Disparity values", x = "Disparity", y = "Count")
+
+ggplot(synth_data, aes(x = focus_group, y = cigarette_use_prevalence_percent_focus_group)) +
+  geom_boxplot() +
+  coord_flip() +
+  labs(title = "Focus-group prevalence by focus group", x = "Focus group", y = "Prevalence (%)")
+
+synth_data %>%
+  group_by(year) %>%
+  summarise(mean_prev_focus = mean(cigarette_use_prevalence_percent_focus_group), mean_disparity = mean(disparity_value), .groups = "drop") %>%
+  ggplot(aes(year, mean_prev_focus)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Mean focus-group prevalence over time (pooled)", x = "Year", y = "Mean prevalence (%)")
+```
+
+My bar plot of the focus group prevalence had some of the original bimodal distribution!
+However the disparity had a much larger tail
+This is probably becaus year is related and I did not account for that at all when generating this data.
+The box plots also are not in any way related to the previous box plots, probably because I destroyed any relationship between age and prevalence
+The line plot is also completely out of whack.
+
+Next time I create synthetic data I will be more careful about maintaining the relationships between variables.
