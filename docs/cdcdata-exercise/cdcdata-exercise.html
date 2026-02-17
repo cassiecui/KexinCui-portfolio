@@ -457,6 +457,146 @@ $ disparity   &lt;dbl&gt; 1.1, 1.2, 3.0, 0.9, 1.1, 2.8, 0.9, 0.9, 2.5, 0.3, 0.4,
 </div>
 </div>
 </div>
+</section>
+<section id="this-section-contributed-by-esther-palmer" class="level2">
+<h2 class="anchored" data-anchor-id="this-section-contributed-by-esther-palmer">This section contributed by Esther Palmer</h2>
+<p>I had to move the location of the file, as the code as written couldn’t find it where it was. I didn’t necessarily wish to change the code so I figured moving the file itself to where the code can find it on my end would be fine.</p>
+<p>This cell loads the libraries not in the previous section</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(skimr)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: package 'skimr' was built under R version 4.4.3</code></pre>
+</div>
+</div>
+<p>This cell creates my synthetic data</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>n_dat <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">500</span>)</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>synth_data <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">year =</span> <span class="fu">numeric</span>(n_dat),</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">state =</span> <span class="fu">character</span>(n_dat),</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">tobacco_use =</span> <span class="fu">character</span>(n_dat),</span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">demographic =</span> <span class="fu">character</span>(n_dat),</span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">focus_group =</span> <span class="fu">character</span>(n_dat),</span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">cigarette_use_prevalence_percent_focus_group =</span> <span class="fu">character</span>(n_dat),</span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference_group =</span> <span class="fu">character</span>(n_dat),</span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">cigarette_use_prevalence_percent_reference_group =</span> <span class="fu">character</span>(n_dat),</span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a> <span class="at">disparity_value =</span> <span class="fu">character</span>(n_dat)</span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a><span class="co">#this should ideally create an empty dataframe with 100 rows that I can then fill with synthetic data</span></span>
+<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a><span class="co">#I chose 500 because it is easy to do math on</span></span>
+<span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a><span class="co">#now I will start filling in the variables</span></span>
+<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a>synth_data<span class="sc">$</span>year <span class="ot">&lt;-</span> <span class="fu">sample</span>(<span class="dv">2011</span><span class="sc">:</span><span class="dv">2023</span>, n_dat, <span class="at">replace =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a><span class="co">#this should generate 100 integers between 2011 and 2023 and fill in the year variable</span></span>
+<span id="cb27-20"><a href="#cb27-20" aria-hidden="true" tabindex="-1"></a>synth_data<span class="sc">$</span>year <span class="ot">&lt;-</span> <span class="fu">sort</span>(synth_data<span class="sc">$</span>year, <span class="at">decreasing =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb27-21"><a href="#cb27-21" aria-hidden="true" tabindex="-1"></a><span class="co">#This puts the years in order like the original dataset</span></span>
+<span id="cb27-22"><a href="#cb27-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-23"><a href="#cb27-23" aria-hidden="true" tabindex="-1"></a>state_prob <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">0.1</span>, <span class="fl">0.1</span>, <span class="fl">0.1</span>, <span class="fl">0.1</span>, <span class="fl">0.1</span>, <span class="fl">0.1</span>, <span class="fl">0.1</span>, <span class="fl">0.1</span>, <span class="fl">0.1</span>, <span class="fl">0.1</span>)</span>
+<span id="cb27-24"><a href="#cb27-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-25"><a href="#cb27-25" aria-hidden="true" tabindex="-1"></a>synth_data<span class="sc">$</span>state <span class="ot">&lt;-</span> <span class="fu">sample</span>(<span class="fu">c</span>(<span class="st">"Alaska"</span>, <span class="st">"Arizona"</span>, <span class="st">"California"</span>, <span class="st">"Colorado"</span>, <span class="st">"Georgia"</span>, <span class="st">"Hawaii"</span>, <span class="st">"Idaho"</span>, <span class="st">"Indiana"</span>, <span class="st">"Iowa"</span>, <span class="st">"Kansas"</span>),</span>
+<span id="cb27-26"><a href="#cb27-26" aria-hidden="true" tabindex="-1"></a> n_dat, </span>
+<span id="cb27-27"><a href="#cb27-27" aria-hidden="true" tabindex="-1"></a> <span class="at">replace =</span><span class="cn">TRUE</span>,</span>
+<span id="cb27-28"><a href="#cb27-28" aria-hidden="true" tabindex="-1"></a> <span class="at">prob =</span>  state_prob</span>
+<span id="cb27-29"><a href="#cb27-29" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb27-30"><a href="#cb27-30" aria-hidden="true" tabindex="-1"></a><span class="co">#this should generate states for this data set, looking at the previous tables there were equal numbers of them so I attempted to set the probability at equal (0.1) using a vector, however this seems to not be perfect. I think not setting the probablility to anything would still have the same effect as what I did</span></span>
+<span id="cb27-31"><a href="#cb27-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-32"><a href="#cb27-32" aria-hidden="true" tabindex="-1"></a><span class="co">#I have realized that I have no reference for what the categories are for this one, so I will make a table (I edited the code from above for this variable)</span></span>
+<span id="cb27-33"><a href="#cb27-33" aria-hidden="true" tabindex="-1"></a>cdc <span class="sc">%&gt;%</span> <span class="fu">count</span>(tobacco_use, <span class="at">sort =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">pct =</span> n<span class="sc">/</span><span class="fu">sum</span>(n)<span class="sc">*</span><span class="dv">100</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 1 × 3
+  tobacco_use                    n   pct
+  &lt;chr&gt;                      &lt;int&gt; &lt;dbl&gt;
+1 Cigarette Use among Adults  7710   100</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="co">#It seems like all columns are filled with "Cigarette use among Adults"</span></span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>synth_data<span class="sc">$</span>tobacco_use <span class="ot">&lt;-</span> <span class="fu">sample</span>(<span class="fu">c</span>(<span class="st">"Cigarette Use among Adults"</span>), n_dat, <span class="at">replace =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="co">#This vector is now filled with the correct singular response</span></span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>synth_data<span class="sc">$</span>demographic <span class="ot">&lt;-</span> <span class="fu">sample</span>(<span class="fu">c</span>(<span class="st">"Age"</span>), n_dat, <span class="at">replace =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a><span class="co">#this is another vector filled with a singular response</span></span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a>focus_prob <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">25.2</span>, <span class="fl">25.2</span>, <span class="fl">25.2</span>, <span class="fl">24.4</span>)</span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a><span class="co">#This vector contains the probability of each category of the focus group, taken from the table generated above</span></span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>synth_data<span class="sc">$</span>focus_group <span class="ot">&lt;-</span> <span class="fu">sample</span>(<span class="fu">c</span>(<span class="st">"Age 25-44"</span>, <span class="st">"Age 45-64"</span>, <span class="st">"Age 65 or older"</span>, <span class="st">"Age 18-24"</span>), n_dat, <span class="at">replace =</span> <span class="cn">TRUE</span>, <span class="at">prob =</span> focus_prob)</span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a><span class="co">#This should regenerate the focus group column with these categories at these probablilities</span></span>
+<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a><span class="co">#I am having a hard time getting these probabilities to exactly match up, it would probably be easier with larger numbers</span></span>
+<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a><span class="co">#tried that, maybe not</span></span>
+<span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a><span class="co">#I also need to fill in the reference group data, however there isn't a table above, so I will borrow/edit the code for it</span></span>
+<span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a>cdc <span class="sc">%&gt;%</span> <span class="fu">count</span>(ref_group, <span class="at">sort =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">pct =</span> n<span class="sc">/</span><span class="fu">sum</span>(n)<span class="sc">*</span><span class="dv">100</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 4 × 3
+  ref_group           n   pct
+  &lt;chr&gt;           &lt;int&gt; &lt;dbl&gt;
+1 Age 25-44        1944  25.2
+2 Age 45-64        1944  25.2
+3 Age 65 or older  1944  25.2
+4 Age 18-24        1878  24.4</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="co">#this shows a similar prob for the reference group as compared to focus</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>synth_data<span class="sc">$</span>reference_group <span class="ot">&lt;-</span> <span class="fu">sample</span>(<span class="fu">c</span>(<span class="st">"Age 25-44"</span>, <span class="st">"Age 45-64"</span>, <span class="st">"Age 65 or older"</span>, <span class="st">"Age 18-24"</span>), n_dat, <span class="at">replace =</span> <span class="cn">TRUE</span>, <span class="at">prob =</span> focus_prob)</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a><span class="co">#these next ones are a bunch of continuous data points. Theres also a relationship between disparity and both prevalence of the focus group and the prevalence in the reference group. As in disparity = focus - ref, and so I can't just randomly generate disparity</span></span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a><span class="co">#based on the histogram above, I think prevalence was in a bimodal distribution rather than a normal one. So I will use the technique of randomly sampling from the actual numbers in the hopes that this synthetic dataset will match this distribution.</span></span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>synth_data<span class="sc">$</span>cigarette_use_prevalence_percent_focus_group <span class="ot">&lt;-</span> <span class="fu">sample</span>(cdc<span class="sc">$</span>prev_focus, <span class="at">size =</span> n_dat, <span class="at">replace =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a><span class="co">#I will use the same technique for the reference group</span></span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a>synth_data<span class="sc">$</span>cigarette_use_prevalence_percent_reference_group <span class="ot">&lt;-</span> <span class="fu">sample</span>(cdc<span class="sc">$</span>prev_ref, <span class="at">size =</span> n_dat, <span class="at">replace =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a><span class="co">#now I have to figure out how to do math, I want disparity = [focus - ref] (absolute value bc I noticed no negative values)</span></span>
+<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a>synth_data<span class="sc">$</span>disparity_value <span class="ot">&lt;-</span> <span class="fu">abs</span>(synth_data<span class="sc">$</span>cigarette_use_prevalence_percent_focus_group <span class="sc">-</span> synth_data<span class="sc">$</span>cigarette_use_prevalence_percent_reference_group)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>I have created all the variables! Now time to graph and see how they compare against the original data</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(synth_data, <span class="fu">aes</span>(cigarette_use_prevalence_percent_focus_group)) <span class="sc">+</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">bins =</span> <span class="dv">30</span>) <span class="sc">+</span></span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Focus-group smoking prevalence"</span>, <span class="at">x =</span> <span class="st">"Prevalence (%)"</span>, <span class="at">y =</span> <span class="st">"Count"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="cdcdata-exercise_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(synth_data, <span class="fu">aes</span>(disparity_value)) <span class="sc">+</span></span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">bins =</span> <span class="dv">30</span>) <span class="sc">+</span></span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Disparity values"</span>, <span class="at">x =</span> <span class="st">"Disparity"</span>, <span class="at">y =</span> <span class="st">"Count"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="cdcdata-exercise_files/figure-html/unnamed-chunk-8-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(synth_data, <span class="fu">aes</span>(<span class="at">x =</span> focus_group, <span class="at">y =</span> cigarette_use_prevalence_percent_focus_group)) <span class="sc">+</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_boxplot</span>() <span class="sc">+</span></span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_flip</span>() <span class="sc">+</span></span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Focus-group prevalence by focus group"</span>, <span class="at">x =</span> <span class="st">"Focus group"</span>, <span class="at">y =</span> <span class="st">"Prevalence (%)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="cdcdata-exercise_files/figure-html/unnamed-chunk-8-3.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>synth_data <span class="sc">%&gt;%</span></span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(year) <span class="sc">%&gt;%</span></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">mean_prev_focus =</span> <span class="fu">mean</span>(cigarette_use_prevalence_percent_focus_group), <span class="at">mean_disparity =</span> <span class="fu">mean</span>(disparity_value), <span class="at">.groups =</span> <span class="st">"drop"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(year, mean_prev_focus)) <span class="sc">+</span></span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>() <span class="sc">+</span></span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Mean focus-group prevalence over time (pooled)"</span>, <span class="at">x =</span> <span class="st">"Year"</span>, <span class="at">y =</span> <span class="st">"Mean prevalence (%)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="cdcdata-exercise_files/figure-html/unnamed-chunk-8-4.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>My bar plot of the focus group prevalence had some of the original bimodal distribution! However the disparity had a much larger tail This is probably becaus year is related and I did not account for that at all when generating this data. The box plots also are not in any way related to the previous box plots, probably because I destroyed any relationship between age and prevalence The line plot is also completely out of whack.</p>
+<p>Next time I create synthetic data I will be more careful about maintaining the relationships between variables.</p>
 
 
 </section>
