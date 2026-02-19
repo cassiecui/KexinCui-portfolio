@@ -1,0 +1,178 @@
+---
+title: "Presentation Exercise"
+
+---
+
+## Loading and checking data
+
+The goal is to re-create the FiveThirtyEight figure: **“Baby boomers are the biggest generation in Congress today”**  
+(share of members in Congress from each generation, 1919 to 2023).
+
+Portions of the code were initially generated with the assistance of an AI tool and subsequently revised and validated manually.
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(scales)
+```
+
+
+```{r}
+dat <- readr::read_csv("data_aging_congress.csv", show_col_types = FALSE)
+
+glimpse(dat)
+
+```
+
+## Re-create the figure (static)
+
+The original figure is a share-of-members-by-generation plot across Congresses.
+We compute the proportion of members in each generation for each Congress.
+```{r}
+gen_levels <- c(
+  "Gilded", "Progressive", "Missionary", "Lost", "Greatest", "Silent",
+  "Boomers", "Gen X", "Millennial", "Gen Z"
+)
+
+plot_df <- dat %>%
+  mutate(
+    generation = case_when(
+      generation == "baby boomer" ~ "Boomers",
+      generation == "Generation X" ~ "Gen X",
+      generation == "millennial" ~ "Millennial",
+      generation == "Generation Z" ~ "Gen Z",
+      TRUE ~ generation
+    ),
+    generation = factor(generation, levels = gen_levels),
+    start_date = as.Date(start_date)
+  ) %>%
+  filter(!is.na(generation), !is.na(start_date)) %>%
+  count(congress, start_date, generation, name = "n") %>%
+  group_by(congress, start_date) %>%
+  mutate(share = n / sum(n)) %>%
+  ungroup()
+
+plot_df %>% arrange(start_date) %>% head()
+
+```
+
+This uses geom_area(position = "fill") to replicate a 100% stacked area chart.
+```{r}
+p <- ggplot(plot_df, aes(x = start_date, y = share, fill = generation)) +
+  geom_area(position = "fill", linewidth = 0) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  scale_x_date(
+    date_breaks = "5 years",
+    date_labels = "%Y",
+    expand = expansion(mult = c(0.01, 0.01))
+  ) +
+  guides(fill = guide_legend(nrow = 1, byrow = TRUE)) +
+  labs(
+    title = "Baby boomers are the biggest generation in Congress today",
+    subtitle = "Share of members in Congress from each generation, 1919 to 2023",
+    x = NULL,
+    y = NULL,
+    fill = NULL,
+    caption = "Source: Biographical Directory of the U.S. Congress; VoteView.com (via FiveThirtyEight)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", size = 18),
+    plot.subtitle = element_text(size = 12, margin = margin(b = 10)),
+    legend.position = "top",
+    legend.justification = "left",
+    legend.text = element_text(size = 10),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    plot.caption = element_text(size = 9, color = "gray40"),
+    plot.margin = margin(10, 10, 10, 10)
+  )
+
+p
+
+```
+
+
+## Optional: interactive version (toggle generations)
+
+
+```{r}
+
+library(plotly)
+
+
+ggplotly(p, tooltip = c("x", "y", "fill"))
+
+```
+
+
+## Publication-quality table
+
+
+```{r}
+library(gt)
+
+
+if (!"prop" %in% names(plot_df)) {
+  plot_df <- plot_df %>%
+    dplyr::group_by(congress, start_date) %>%
+    dplyr::mutate(prop = share / sum(share)) %>%
+    dplyr::ungroup()
+}
+
+tbl_df <- plot_df %>%
+  dplyr::select(congress, start_date, generation, prop) %>%
+  tidyr::pivot_wider(names_from = generation, values_from = prop) %>%
+  dplyr::arrange(dplyr::desc(start_date)) %>%
+  dplyr::mutate(
+    Year = lubridate::year(start_date),
+    Boomers_change_pp = (Boomers - dplyr::lead(Boomers)) * 100
+  ) %>%
+  dplyr::slice(1:10) %>%
+  dplyr::select(Year, congress, Boomers, Boomers_change_pp, `Gen X`, Millennial, `Gen Z`)
+
+```
+
+```{r}
+gt(tbl_df) %>%
+  tab_header(
+    title = md("**Generational Composition of Congress (Most Recent 10 Congresses)**"),
+    subtitle = md("Percent shares within each Congress; Boomers column is conditionally highlighted.")
+  ) %>%
+  tab_spanner(md("**Boomer Trends**"), columns = c(Boomers, Boomers_change_pp)) %>%
+  tab_spanner(md("**Younger Generations (Share)**"), columns = c(`Gen X`, Millennial, `Gen Z`)) %>%
+  cols_label(
+    congress = "Congress",
+    Boomers = "Boomers (%)",
+    Boomers_change_pp = "Change (pp)",
+    `Gen X` = "Gen X (%)",
+    Millennial = "Millennial (%)",
+    `Gen Z` = "Gen Z (%)"
+  ) %>%
+  fmt_percent(columns = c(Boomers, `Gen X`, Millennial, `Gen Z`), decimals = 1) %>%
+  fmt_number(columns = Boomers_change_pp, decimals = 1) %>%
+  data_color(
+  columns = Boomers,
+  fn = scales::col_numeric(
+    palette = c("#f7fbff", "#08306b"),
+    domain = range(tbl_df$Boomers, na.rm = TRUE)
+   )
+  ) %>%
+  tab_style(
+    style = cell_text(color = "darkgreen", weight = "bold"),
+    locations = cells_body(columns = Boomers_change_pp, rows = Boomers_change_pp > 0)
+  ) %>%
+  tab_style(
+    style = cell_text(color = "firebrick", weight = "bold"),
+    locations = cells_body(columns = Boomers_change_pp, rows = Boomers_change_pp < 0)
+  ) %>%
+  tab_source_note(md("**Source:** FiveThirtyEight aging Congress dataset (Biographical Directory; VoteView).")) %>%
+  tab_footnote(
+    footnote = md("Change is measured in **percentage points** from the prior Congress in this table."),
+    locations = cells_column_labels(columns = Boomers_change_pp)
+  ) %>%
+  cols_align("center")
+
+```
