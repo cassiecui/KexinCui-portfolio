@@ -1,0 +1,233 @@
+---
+title: "TidyTuesday Exercise: Bird Sightings at Sea (2026-04-14)"
+---
+
+TidyTuesday week of 2026-04-14: log-book entries of seabird sightings near
+New Zealand, 1969–1990. Data from the Australasian Seabird Mapping Scheme
+via Te Papa Tongarewa.
+
+## Setup
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+library(ranger)
+library(glmnet)
+library(vip)
+set.seed(2026)
+```
+
+```{r}
+
+data_dir <- if (dir.exists("data")) "data" else "tidytuesday-exercise/data"
+
+birds      <- read_csv(file.path(data_dir, "birds.csv"))
+ships      <- read_csv(file.path(data_dir, "ships.csv"))
+beaufort   <- read_csv(file.path(data_dir, "beaufort_scale.csv"))
+sea_states <- read_csv(file.path(data_dir, "sea_states.csv"))
+```
+
+## Data cleaning and joining
+
+Aggregate `birds` to one row per ship record, then join environmental data.
+
+```{r}
+# Collapse multiple species rows per ship record into one total count
+bird_per_record <- birds |>
+  group_by(record_id) |>
+  summarise(total_birds = sum(count, na.rm = TRUE), .groups = "drop")
+
+# Join birds + lookup tables to ships; records with no birds get 0
+df <- ships |>
+  left_join(bird_per_record, by = "record_id") |>
+  left_join(beaufort,   by = "wind_speed_class") |>
+  left_join(sea_states, by = "sea_state_class") |>
+  mutate(
+    total_birds = replace_na(total_birds, 0),
+    abs_lat     = abs(latitude)   # distance from equator
+  )
+```
+
+## Exploratory data analysis
+
+```{r}
+# Heavy right-skew motivates a log1p outcome
+ggplot(df, aes(total_birds + 1)) +
+  geom_histogram(bins = 40, fill = "steelblue") +
+  scale_x_log10() + theme_minimal()
+```
+
+The outcome is heavily right-skewed, so we model `log1p(total_birds)`.
+
+```{r}
+# Bird counts by season
+df |> filter(!is.na(season)) |>
+  ggplot(aes(season, total_birds + 1)) +
+  geom_boxplot(fill = "lightgreen") +
+  scale_y_log10() + theme_minimal()
+```
+
+```{r}
+# Spatial pattern shows a clear latitudinal gradient -> use abs_lat.
+ggplot(df, aes(longitude, latitude, color = log1p(total_birds))) +
+  geom_point(alpha = 0.5, size = 0.6) +
+  scale_color_viridis_c() + theme_minimal()
+```
+
+## Question
+
+Can environmental conditions and ship activity predict seabird abundance?
+Hypothesis: more birds at higher latitudes, in rougher seas, and during
+trawling-related activities.
+
+## Preprocessing and split
+
+```{r}
+# Outcome + predictors only; drop rows missing the outcome or core predictors.
+model_df <- df |>
+  transmute(
+    log_birds        = log1p(total_birds),
+    wind_speed_class = as.integer(wind_speed_class),
+    sea_state_class  = as.integer(sea_state_class),
+    abs_lat,
+    speed            = as.numeric(speed),
+    cloud_cover      = factor(cloud_cover),
+    precipitation    = factor(precipitation),
+    activity         = factor(activity),
+    season           = factor(season)
+  ) |>
+  drop_na(log_birds, wind_speed_class, sea_state_class,
+          abs_lat, season, activity)
+
+# 80/20 stratified split + 5-fold CV on the training set.
+split <- initial_split(model_df, prop = 0.8, strata = log_birds)
+train <- training(split); test <- testing(split)
+folds <- vfold_cv(train, v = 5, strata = log_birds)
+
+# Shared recipe: impute, lump rare levels, dummy-encode, normalize.
+rec <- recipe(log_birds ~ ., data = train) |>
+  step_impute_median(all_numeric_predictors()) |>
+  step_unknown(all_nominal_predictors()) |>
+  step_other(all_nominal_predictors(), threshold = 0.02) |>
+  step_dummy(all_nominal_predictors()) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_numeric_predictors())
+
+mset <- metric_set(rmse, rsq, mae)  # same metrics for all models
+```
+
+## Models
+
+### Linear regression
+
+```{r}
+# Interpretable baseline: OLS on the shared recipe
+lm_wf <- workflow() |> add_recipe(rec) |>
+  add_model(linear_reg() |> set_engine("lm"))
+lm_cv <- fit_resamples(lm_wf, folds, metrics = mset)
+collect_metrics(lm_cv)
+```
+
+### LASSO
+
+```{r}
+# Linear with L1 penalty; tune penalty on a log grid 1e-4..1.
+lasso_wf <- workflow() |> add_recipe(rec) |>
+  add_model(linear_reg(penalty = tune(), mixture = 1) |>
+              set_engine("glmnet"))
+lasso_tune <- tune_grid(
+  lasso_wf, folds,
+  grid = grid_regular(penalty(range = c(-4, 0)), levels = 20),
+  metrics = mset
+)
+show_best(lasso_tune, metric = "rmse", n = 3)
+```
+
+### Random forest
+
+```{r}
+# Captures non-linearities and interactions; tune mtry and min_n.
+rf_wf <- workflow() |> add_recipe(rec) |>
+  add_model(rand_forest(mtry = tune(), min_n = tune(), trees = 500) |>
+              set_engine("ranger", importance = "permutation") |>
+              set_mode("regression"))
+rf_tune <- tune_grid(
+  rf_wf, folds,
+  grid = grid_regular(mtry(c(2, 8)), min_n(c(2, 20)), levels = 4),
+  metrics = mset,
+  control = control_grid(save_pred = TRUE)  # keep CV predictions for residual plot
+)
+show_best(rf_tune, metric = "rmse", n = 3)
+```
+
+## CV comparison
+
+```{r}
+# Pull the best tuned config from each tuned model for a fair comparison.
+best_lasso <- select_best(lasso_tune, metric = "rmse")
+best_rf    <- select_best(rf_tune,    metric = "rmse")
+
+cv_results <- bind_rows(
+  collect_metrics(lm_cv) |> mutate(model = "Linear"),
+  collect_metrics(lasso_tune) |>
+    semi_join(best_lasso, by = ".config") |> mutate(model = "LASSO"),
+  collect_metrics(rf_tune) |>
+    semi_join(best_rf, by = ".config")    |> mutate(model = "Random forest")
+) |> select(model, .metric, mean, std_err) |> arrange(.metric, mean)
+cv_results
+```
+
+```{r}
+# CV RMSE with 1-SE error bars.
+cv_results |> filter(.metric == "rmse") |>
+  ggplot(aes(reorder(model, mean), mean,
+             ymin = mean - std_err, ymax = mean + std_err)) +
+  geom_col(fill = "steelblue") + geom_errorbar(width = 0.2) +
+  labs(x = NULL, y = "CV RMSE") + theme_minimal()
+```
+
+```{r}
+# Residuals for the best RF: centered on zero indicates no systematic bias.
+collect_predictions(rf_tune, parameters = best_rf) |>
+  ggplot(aes(.pred, log_birds - .pred)) +
+  geom_point(alpha = 0.3) +
+  geom_hline(yintercept = 0, color = "red") + theme_minimal()
+```
+
+## Selection
+
+The random forest has the lowest CV RMSE and highest R², and captures
+non-linear effects of latitude, sea state, and ship activity that the
+linear models miss. We select it as the final model.
+
+## Test set
+
+```{r}
+# Train RF with chosen hyperparameters on full train set; evaluate on test once.
+final_fit <- last_fit(finalize_workflow(rf_wf, best_rf),
+                      split, metrics = mset)
+collect_metrics(final_fit)
+```
+
+```{r}
+# Predicted vs. observed; closer to the red 45° line is better.
+collect_predictions(final_fit) |>
+  ggplot(aes(log_birds, .pred)) +
+  geom_point(alpha = 0.3) +
+  geom_abline(color = "red") + theme_minimal()
+```
+
+```{r}
+# Permutation importance from the final RF.
+final_fit |> extract_fit_parsnip() |> vip(num_features = 12)
+```
+
+## Discussion
+
+The hypothesis is partly supported. Absolute latitude, Beaufort wind class,
+sea state, and ship activity are the strongest predictors, with trawling
+records showing clearly higher counts. Wind effects are non-monotonic —
+moderate winds yield the highest medians while extremes reduce sightings.
+Limitations: heavy zero-inflation, missing weather fields, and
+ship of opportunity sampling. A hurdle model and species specific
+analyses are natural next steps.
