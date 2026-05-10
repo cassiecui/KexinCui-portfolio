@@ -1,0 +1,151 @@
+---
+title: "Machine Learning Models Exercise"
+---
+
+## Loading packages and data
+
+```{r}
+pkgs <- c("tidyverse", "tidymodels", "GGally", "glmnet", "ranger")
+for (p in pkgs) {
+  if (!requireNamespace(p, quietly = TRUE)) {
+    install.packages(p, repos = "https://cloud.r-project.org")
+  }
+}
+
+library(tidyverse)
+library(tidymodels)
+library(GGally)
+library(glmnet)
+library(ranger)
+```
+
+```{r}
+rngseed <- 1234
+set.seed(rngseed)
+
+
+mavo <- readRDS(here::here("ml-models-exercise", "mavo_clean.rds"))
+
+# Recode RACE: combine categories 7 and 88 into 3
+mavo <- mavo %>%
+  mutate(RACE = as.character(RACE),
+         RACE = if_else(RACE %in% c("7", "88"), "3", RACE),
+         RACE = factor(RACE))
+
+# Pairwise correlation of continuous predictors
+mavo %>% select(Y, DOSE, AGE, WT, HT) %>% ggpairs() + theme_minimal()
+
+# BMI
+mavo <- mavo %>% mutate(BMI = WT / (HT^2))
+```
+
+## First fits (no CV, no tuning)
+
+```{r}
+# Model specifications
+lm_spec  <- linear_reg() %>% set_engine("lm")
+las_spec <- linear_reg(penalty = 0.1, mixture = 1) %>% set_engine("glmnet")
+rf_spec  <- rand_forest(trees = 300) %>%
+  set_engine("ranger", seed = rngseed) %>%
+  set_mode("regression")
+
+# Fit on full data, all predictors
+fit_lm  <- lm_spec  %>% fit(Y ~ ., data = mavo)
+fit_las <- las_spec %>% fit(Y ~ ., data = mavo)
+fit_rf  <- rf_spec  %>% fit(Y ~ ., data = mavo)
+
+# Predictions and RMSE
+pred_all <- bind_rows(
+  tibble(model = "Linear", observed = mavo$Y, predicted = predict(fit_lm,  mavo)$.pred),
+  tibble(model = "LASSO",  observed = mavo$Y, predicted = predict(fit_las, mavo)$.pred),
+  tibble(model = "RF",     observed = mavo$Y, predicted = predict(fit_rf,  mavo)$.pred)
+)
+
+pred_all %>%
+  group_by(model) %>%
+  summarize(rmse = sqrt(mean((observed - predicted)^2)))
+```
+
+```{r}
+ggplot(pred_all, aes(x = observed, y = predicted, color = model, shape = model)) +
+  geom_point(alpha = 0.7) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  facet_wrap(~ model) +
+  labs(title = "Observed vs predicted (no tuning)", x = "Observed Y", y = "Predicted Y") +
+  theme_minimal()
+```
+
+Linear and LASSO give nearly identical fits. RF fits much closer because it
+can capture nonlinearity and interactions.
+
+##  Tuning without CV (apparent resampling)
+
+```{r}
+# LASSO penalty grid
+las_tune_spec <- linear_reg(penalty = tune(), mixture = 1) %>% set_engine("glmnet")
+las_wf <- workflow() %>% add_model(las_tune_spec) %>% add_formula(Y ~ .)
+las_grid <- tibble(penalty = 10^seq(-5, 2, length.out = 50))
+
+las_tune_apparent <- tune_grid(
+  las_wf, resamples = apparent(mavo), grid = las_grid, metrics = metric_set(rmse)
+)
+
+# autoplot() doesn't work with apparent() (only one resample), so plot manually
+collect_metrics(las_tune_apparent, summarize = FALSE) %>%
+  ggplot(aes(x = penalty, y = .estimate)) +
+  geom_line() + geom_point() +
+  scale_x_log10() +
+  labs(title = "LASSO tuning (apparent)", y = "RMSE") +
+  theme_minimal()
+```
+
+```{r}
+# Random forest grid: tune mtry and min_n
+rf_tune_spec <- rand_forest(trees = 300, mtry = tune(), min_n = tune()) %>%
+  set_engine("ranger", seed = rngseed) %>%
+  set_mode("regression")
+
+rf_wf <- workflow() %>% add_model(rf_tune_spec) %>% add_formula(Y ~ .)
+rf_grid <- grid_regular(mtry(range = c(1, 7)), min_n(range = c(1, 21)), levels = 7)
+
+rf_tune_apparent <- tune_grid(
+  rf_wf, resamples = apparent(mavo), grid = rf_grid, metrics = metric_set(rmse)
+)
+
+collect_metrics(rf_tune_apparent, summarize = FALSE) %>%
+  ggplot(aes(x = mtry, y = .estimate, color = factor(min_n))) +
+  geom_line() + geom_point() +
+  labs(title = "Random forest tuning (apparent)", y = "RMSE", color = "min_n") +
+  theme_minimal()
+```
+
+LASSO RMSE drops as the penalty shrinks (approaching OLS). RF RMSE drops
+with higher `mtry` and lower `min_n` — both signals are misleading because
+we are evaluating on training data.
+
+## Tuning with CV
+
+```{r}
+set.seed(rngseed)
+cv_folds <- vfold_cv(mavo, v = 5, repeats = 5)
+
+# LASSO with CV
+las_tune_cv <- tune_grid(
+  las_wf, resamples = cv_folds, grid = las_grid, metrics = metric_set(rmse)
+)
+autoplot(las_tune_cv) + scale_x_log10() + labs(title = "LASSO tuning (CV)")
+show_best(las_tune_cv, metric = "rmse", n = 5)
+```
+
+```{r}
+# Random forest with CV
+rf_tune_cv <- tune_grid(
+  rf_wf, resamples = cv_folds, grid = rf_grid, metrics = metric_set(rmse)
+)
+autoplot(rf_tune_cv) + labs(title = "Random forest tuning (CV)")
+show_best(rf_tune_cv, metric = "rmse", n = 5)
+```
+
+
+With proper CV both models' RMSEs increase compared to the apparent results, giving an honest estimate of out of sample performance. LASSO often better than the RF, because the underlying signal
+is largely linear and RF's earlier advantage was overfitting.

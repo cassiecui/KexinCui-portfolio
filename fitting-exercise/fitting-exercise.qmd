@@ -1,0 +1,443 @@
+---
+title: "Model Fitting Exercise"
+---
+
+
+## Loading packages and data
+
+```{r}
+pkgs <- c("tidyverse", "tidymodels", "here", "skimr", "GGally", "yardstick")
+for (p in pkgs) {
+  if (!requireNamespace(p, quietly = TRUE)) {
+    install.packages(p, repos = "https://cloud.r-project.org")
+  }
+}
+
+library(tidyverse)
+library(tidymodels)
+library(here)
+library(skimr)
+library(GGally)
+library(yardstick)
+
+# Read the Mavoglurant data
+mavo <- read_csv(here("fitting-exercise", "Mavoglurant_A2121_nmpk.csv"))
+
+# Quick look at the data
+glimpse(mavo)
+summary(mavo)
+```
+
+## Initial exploration: DV over time by DOSE and ID
+
+```{r}
+# Plot DV vs TIME, lines per individual (ID), color/facet by DOSE
+ggplot(mavo, aes(x = TIME, y = DV, group = ID, color = factor(DOSE))) +
+  geom_line(alpha = 0.6) +
+  facet_wrap(~ DOSE) +
+  labs(
+    title = "Drug concentration (DV) over time, stratified by DOSE",
+    x = "Time",
+    y = "DV (drug concentration)",
+    color = "Dose"
+  ) +
+  theme_minimal()
+```
+
+## Data cleaning
+
+```{r}
+# keep only OCC == 1
+mavo_occ1 <- mavo %>% filter(OCC == 1)
+
+# split into the dosing rows (TIME == 0) and observation rows (TIME != 0)
+dose_rows <- mavo_occ1 %>% filter(TIME == 0)
+obs_rows  <- mavo_occ1 %>% filter(TIME != 0)
+
+# total drug for each individual = sum of DV across observation rows
+total_Y <- obs_rows %>%
+  group_by(ID) %>%
+  summarize(Y = sum(DV), .groups = "drop")
+
+# get the baseline characteristics from the dosing row
+baseline <- dose_rows %>%
+  select(ID, DOSE, AGE, SEX, RACE, WT, HT)
+
+# join total Y with baseline
+mavo_clean <- baseline %>%
+  inner_join(total_Y, by = "ID") %>%
+  mutate(
+    SEX = factor(SEX),
+    RACE = factor(RACE)
+  ) %>%
+  select(Y, DOSE, AGE, SEX, RACE, WT, HT)
+
+# Save the cleaned data as an RDS file for downstream exercises
+saveRDS(mavo_clean, file = "mavo_clean.rds")
+
+glimpse(mavo_clean)
+summary(mavo_clean)
+```
+
+## Exploratory data analysis
+
+```{r}
+# Summary statistics
+skim(mavo_clean)
+
+# Distribution of Y
+ggplot(mavo_clean, aes(x = Y)) +
+  geom_histogram(bins = 30, fill = "steelblue", color = "white") +
+  labs(title = "Distribution of total drug (Y)", x = "Y", y = "Count") +
+  theme_minimal()
+
+# Y vs DOSE (boxplot, treat DOSE as factor for visualization)
+ggplot(mavo_clean, aes(x = factor(DOSE), y = Y)) +
+  geom_boxplot(fill = "lightblue") +
+  labs(title = "Y by DOSE", x = "DOSE", y = "Y") +
+  theme_minimal()
+
+# Y vs AGE
+ggplot(mavo_clean, aes(x = AGE, y = Y)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Y vs AGE") +
+  theme_minimal()
+
+# Y vs WT
+ggplot(mavo_clean, aes(x = WT, y = Y)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Y vs WT (weight)") +
+  theme_minimal()
+
+# Y vs HT
+ggplot(mavo_clean, aes(x = HT, y = Y)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Y vs HT (height)") +
+  theme_minimal()
+
+# Y by SEX
+ggplot(mavo_clean, aes(x = SEX, y = Y)) +
+  geom_boxplot(fill = "lightgreen") +
+  labs(title = "Y by SEX") +
+  theme_minimal()
+
+# Pairwise relationships of continuous predictors
+mavo_clean %>%
+  select(Y, DOSE, AGE, WT, HT) %>%
+  GGally::ggpairs()
+```
+
+## Model fitting: continuous outcome (Y)
+
+### Model 1: linear regression of Y on DOSE only
+
+```{r}
+lin_spec <- linear_reg() %>% set_engine("lm")
+
+# Fit Y ~ DOSE
+fit_lm_dose <- lin_spec %>%
+  fit(Y ~ DOSE, data = mavo_clean)
+
+tidy(fit_lm_dose)
+
+# Predictions and metrics
+pred_dose <- predict(fit_lm_dose, mavo_clean) %>%
+  bind_cols(mavo_clean %>% select(Y))
+
+metrics_dose <- pred_dose %>%
+  metrics(truth = Y, estimate = .pred) %>%
+  filter(.metric %in% c("rmse", "rsq"))
+
+metrics_dose
+```
+
+### Model 2: linear regression of Y on all predictors
+
+```{r}
+fit_lm_all <- lin_spec %>%
+  fit(Y ~ DOSE + AGE + SEX + RACE + WT + HT, data = mavo_clean)
+
+tidy(fit_lm_all)
+
+pred_all <- predict(fit_lm_all, mavo_clean) %>%
+  bind_cols(mavo_clean %>% select(Y))
+
+metrics_all <- pred_all %>%
+  metrics(truth = Y, estimate = .pred) %>%
+  filter(.metric %in% c("rmse", "rsq"))
+
+metrics_all
+```
+
+### Comparing the two linear models
+
+```{r}
+bind_rows(
+  metrics_dose %>% mutate(model = "Y ~ DOSE"),
+  metrics_all  %>% mutate(model = "Y ~ all predictors")
+) %>%
+  select(model, .metric, .estimate) %>%
+  pivot_wider(names_from = .metric, values_from = .estimate)
+```
+
+The model with all predictors generally yields a lower RMSE and higher
+R-squared than the DOSE-only model, indicating that including additional
+covariates (AGE, SEX, RACE, WT, HT) improves the in-sample fit for the total
+drug outcome Y.
+
+## Model fitting: categorical outcome (SEX)
+
+### Model 3: logistic regression of SEX on DOSE only
+
+```{r}
+log_spec <- logistic_reg() %>% set_engine("glm")
+
+fit_log_dose <- log_spec %>%
+  fit(SEX ~ DOSE, data = mavo_clean)
+
+tidy(fit_log_dose)
+
+# Class predictions and probability predictions
+pred_class_dose <- predict(fit_log_dose, mavo_clean, type = "class")
+pred_prob_dose  <- predict(fit_log_dose, mavo_clean, type = "prob")
+
+results_log_dose <- mavo_clean %>%
+  select(SEX) %>%
+  bind_cols(pred_class_dose, pred_prob_dose)
+
+# Accuracy
+acc_dose <- accuracy(results_log_dose, truth = SEX, estimate = .pred_class)
+
+# ROC-AUC (use the probability column for the first level of SEX)
+prob_col_dose <- paste0(".pred_", levels(mavo_clean$SEX)[1])
+auc_dose <- roc_auc(results_log_dose, truth = SEX, !!sym(prob_col_dose))
+
+bind_rows(acc_dose, auc_dose)
+```
+
+### Model 4: logistic regression of SEX on all predictors
+
+```{r}
+fit_log_all <- log_spec %>%
+  fit(SEX ~ Y + DOSE + AGE + RACE + WT + HT, data = mavo_clean)
+
+tidy(fit_log_all)
+
+pred_class_all <- predict(fit_log_all, mavo_clean, type = "class")
+pred_prob_all  <- predict(fit_log_all, mavo_clean, type = "prob")
+
+results_log_all <- mavo_clean %>%
+  select(SEX) %>%
+  bind_cols(pred_class_all, pred_prob_all)
+
+acc_all <- accuracy(results_log_all, truth = SEX, estimate = .pred_class)
+prob_col_all <- paste0(".pred_", levels(mavo_clean$SEX)[1])
+auc_all <- roc_auc(results_log_all, truth = SEX, !!sym(prob_col_all))
+
+bind_rows(acc_all, auc_all)
+```
+
+### Comparing the two logistic models
+
+```{r}
+bind_rows(
+  bind_rows(acc_dose, auc_dose) %>% mutate(model = "SEX ~ DOSE"),
+  bind_rows(acc_all,  auc_all)  %>% mutate(model = "SEX ~ all predictors")
+) %>%
+  select(model, .metric, .estimate) %>%
+  pivot_wider(names_from = .metric, values_from = .estimate)
+```
+
+The logistic model that uses all predictors generally has higher accuracy and
+ROC-AUC than the model with DOSE alone. DOSE by itself is not very informative
+about SEX, while body-size variables such as WT and HT carry stronger signal
+for predicting SEX.
+
+# Model Improvement Exercise — Part 1
+
+## Data preparation and train/test split
+
+```{r}
+# Drop RACE due to problematic codings; keep Y, DOSE, AGE, SEX, WT, HT
+mavo_mod <- mavo_clean %>% select(-RACE)
+
+rngseed <- 1234
+set.seed(rngseed)
+
+data_split <- initial_split(mavo_mod, prop = 0.75)
+train_data <- training(data_split)
+test_data  <- testing(data_split)
+```
+
+## Fit two linear models on the training data
+
+```{r}
+lin_spec <- linear_reg() %>% set_engine("lm")
+
+fit1_train <- lin_spec %>% fit(Y ~ DOSE, data = train_data)
+fit2_train <- lin_spec %>% fit(Y ~ .,    data = train_data)
+```
+
+## Assessment 1: training RMSE vs. null model
+
+```{r}
+pred_m1_train <- predict(fit1_train, train_data) %>% bind_cols(train_data %>% select(Y))
+pred_m2_train <- predict(fit2_train, train_data) %>% bind_cols(train_data %>% select(Y))
+null_pred_train <- tibble(.pred = mean(train_data$Y), Y = train_data$Y)
+
+rmse_null <- rmse(null_pred_train, truth = Y, estimate = .pred)
+rmse_m1   <- rmse(pred_m1_train,   truth = Y, estimate = .pred)
+rmse_m2   <- rmse(pred_m2_train,   truth = Y, estimate = .pred)
+
+bind_rows(
+  rmse_null %>% mutate(model = "Null"),
+  rmse_m1   %>% mutate(model = "Model 1: Y ~ DOSE"),
+  rmse_m2   %>% mutate(model = "Model 2: Y ~ all")
+) %>% select(model, .metric, .estimate)
+```
+
+## Assessment 2: 10-fold cross-validation
+
+```{r}
+set.seed(rngseed)
+folds <- vfold_cv(train_data, v = 10)
+
+wf1 <- workflow() %>% add_model(lin_spec) %>% add_formula(Y ~ DOSE)
+wf2 <- workflow() %>% add_model(lin_spec) %>% add_formula(Y ~ .)
+
+cv_m1 <- wf1 %>% fit_resamples(resamples = folds, metrics = metric_set(rmse))
+cv_m2 <- wf2 %>% fit_resamples(resamples = folds, metrics = metric_set(rmse))
+
+bind_rows(
+  collect_metrics(cv_m1) %>% mutate(model = "Model 1: Y ~ DOSE"),
+  collect_metrics(cv_m2) %>% mutate(model = "Model 2: Y ~ all")
+) %>% select(model, .metric, mean, std_err, n)
+```
+
+CV RMSE is higher than in-sample RMSE, especially for Model 2, indicating
+some overfitting. Model 2 still outperforms Model 1.
+
+# Model Improvement Exercise — Part 2
+
+## Observed vs predicted for the three models
+
+```{r}
+null_pred <- rep(mean(train_data$Y), nrow(train_data))
+m1_pred <- predict(fit1_train, train_data)$.pred
+m2_pred <- predict(fit2_train, train_data)$.pred
+
+pred_compare <- bind_rows(
+  tibble(observed = train_data$Y, predicted = null_pred, model = "Null"),
+  tibble(observed = train_data$Y, predicted = m1_pred,   model = "Model 1: Y ~ DOSE"),
+  tibble(observed = train_data$Y, predicted = m2_pred,   model = "Model 2: Y ~ all")
+)
+
+ggplot(pred_compare, aes(x = observed, y = predicted, color = model, shape = model)) +
+  geom_point(alpha = 0.7) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  xlim(0, 5000) + ylim(0, 5000) +
+  labs(title = "Observed vs predicted (training)", x = "Observed Y", y = "Predicted Y") +
+  theme_minimal()
+```
+
+The null model is one horizontal line; Model 1 forms three horizontal lines
+(one per DOSE level); Model 2 spreads along the 45-degree reference.
+
+## Residuals from Model 2
+
+```{r}
+resid_df <- tibble(predicted = m2_pred, residual = m2_pred - train_data$Y)
+
+ggplot(resid_df, aes(x = predicted, y = residual)) +
+  geom_point(alpha = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  ylim(-max(abs(resid_df$residual)), max(abs(resid_df$residual))) +
+  labs(title = "Predicted vs residuals (Model 2)", x = "Predicted Y", y = "Residual") +
+  theme_minimal()
+```
+
+Residuals show negative-skew: larger negative residuals than positive ones,
+suggesting some structure the linear model misses.
+
+## Bootstrap uncertainty for Model 2
+
+```{r}
+set.seed(rngseed)
+boots <- bootstraps(train_data, times = 100)
+
+boot_preds <- map(boots$splits, function(split) {
+  fit_b <- lin_spec %>% fit(Y ~ ., data = analysis(split))
+  predict(fit_b, train_data)$.pred
+})
+
+boot_mat <- do.call(cbind, boot_preds)
+
+boot_summary <- tibble(
+  observed = train_data$Y,
+  point    = m2_pred,
+  median   = apply(boot_mat, 1, median),
+  lower    = apply(boot_mat, 1, quantile, probs = 0.055),
+  upper    = apply(boot_mat, 1, quantile, probs = 0.945)
+)
+```
+
+```{r}
+ggplot(boot_summary, aes(x = observed)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0, alpha = 0.4, color = "grey60") +
+  geom_point(aes(y = point,  color = "Point"),  alpha = 0.8) +
+  geom_point(aes(y = median, color = "Median"), alpha = 0.8, shape = 17) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  xlim(0, 5000) + ylim(0, 5000) +
+  scale_color_manual(values = c("Point" = "steelblue", "Median" = "firebrick")) +
+  labs(title = "Bootstrap predictions, Model 2 (89% CI)",
+       x = "Observed Y", y = "Predicted Y", color = "") +
+  theme_minimal()
+```
+
+# Model Improvement Exercise — Part 3
+
+## Test set evaluation for Model 2
+
+```{r}
+test_pred <- predict(fit2_train, test_data)$.pred
+
+combined_pred <- bind_rows(
+  tibble(observed = train_data$Y, predicted = m2_pred,   set = "Train"),
+  tibble(observed = test_data$Y,  predicted = test_pred, set = "Test")
+)
+
+ggplot(combined_pred, aes(x = observed, y = predicted, color = set, shape = set)) +
+  geom_point(alpha = 0.8, size = 2) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  xlim(0, 5000) + ylim(0, 5000) +
+  labs(title = "Model 2: train vs test", x = "Observed Y", y = "Predicted Y",
+       color = "Dataset", shape = "Dataset") +
+  theme_minimal()
+```
+
+```{r}
+test_metrics <- tibble(.pred = test_pred, Y = test_data$Y) %>%
+  rmse(truth = Y, estimate = .pred)
+
+bind_rows(
+  rmse_m2      %>% mutate(set = "Train"),
+  test_metrics %>% mutate(set = "Test")
+) %>% select(set, .metric, .estimate)
+```
+
+## Model critique
+
+Both Model 1 and Model 2 beat the null model on training, CV, and test RMSE,
+so both extract real signal from the predictors. Model 1 has limited
+practical utility because `DOSE` only takes three discrete values, so it can
+only output three predictions and cannot distinguish individuals at the same
+dose. Model 2 is a meaningful improvement: it has the lowest RMSE everywhere
+(train, CV, test), its predictions spread along the 45-degree line, and its
+bootstrap medians and 89% intervals are stable. Its main limitations are
+asymmetric residuals at the extremes (suggesting nonlinearity the linear
+model misses), a small sample (90 train / 30 test), and wider bootstrap
+intervals in the tails.
+
